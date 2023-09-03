@@ -58,6 +58,7 @@ create_env_script()
 export TF_VAR_dev_proj_id="${devproj}"
 export TF_VAR_prod_proj_id="${prodproj}"
 export TF_VAR_gcp_region_id="${gcregion}"
+export TF_VAR_gcp_zone_id="${gcregion}-a"
 export TF_VAR_gcs_tf_bucket="${mybucketname}"
 EOF
     chmod u+x environment.sh
