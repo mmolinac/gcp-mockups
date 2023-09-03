@@ -2,7 +2,12 @@
 Toolset for quickly create and destroy different mockups for personal use on GCP
 
 ## Requirements
-The requirements are that you have a valid GCP account, where you have logged in by doing:
+The common requirements for all mockups are the following:
+- A valid GCP account where you are already logged in. More directions to do that below.
+- [Google Cloud SDK](https://cloud.google.com/sdk) already installed and available.
+- [Terraform](https://www.terraform.io/) or [tfswitch](https://tfswitch.warrensbox.com/) installed and available.
+
+Regarding your GCP account, if you have not already, please log in by doing:
 ```Shell
 $ gcloud auth login
 ```
