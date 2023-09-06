@@ -7,4 +7,4 @@ if [ "$1" == "off" ]; then
 else
   export TF_VAR_onprem_instance_status=RUNNING
 fi
-terraform apply
+terraform apply -auto-approve
