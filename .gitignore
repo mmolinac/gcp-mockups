@@ -5,6 +5,9 @@
 *.tfstate
 *.tfstate.*
 
+# tf lock file
+**/.terraform.lock.hcl
+
 # Crash log files
 crash.log
 crash.*.log
@@ -32,3 +35,7 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Custom settings for each user of the app
+environment.sh
+.gcs_tf_bucket
