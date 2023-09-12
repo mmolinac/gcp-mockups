@@ -12,8 +12,11 @@ IP=$(curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeM
 METADATA=$(curl -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/?recursive=True" | jq 'del(.["startup-script"])')
 
 # Add an entry to /etc/hosts
-grep $IP /etc/hosts > /dev/null || echo "`hostname -i` `hostname -s`" >> /etc/hosts
-
+for i in `seq 0 2`
+do
+  fhname="onpremclust0$i"
+  grep $fhname /etc/hosts > /dev/null || echo "`host ${fhname}|awk '{print $4}'` ${fhname}" >> /etc/hosts
+done
 # Add modules to load for Kubernetes
 # Install modules and let iptables see bridged traffic
 cat <<EOF | tee /etc/modules-load.d/k8s.conf
@@ -68,14 +71,13 @@ echo \
   tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 apt update
-apt-get install -y docker-ce docker-ce-cli containerd.io \
-  docker-buildx-plugin docker-compose-plugin netcat-openbsd
+apt-get install -y containerd.io netcat-openbsd
 
 # Create configuration files
 mkdir -p /etc/containerd
 grep 'disabled_plugins' /etc/containerd/config.toml | grep cri > /dev/null && \
-  (containerd config default | tee /etc/containerd/config.toml \
-  && systemctl restart containerd)
+  (containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/g'\
+  | tee /etc/containerd/config.toml \ && systemctl restart containerd)
 
 ## Now give directions to build the cluster
 echo "Installation of software has finished. Now follow these directions:" | tee -a /tmp/startup.log
@@ -86,5 +88,12 @@ if [ "`hostname -s`" = "onpremclust00" ]; then
 else
   ## This is a worker node
   echo "- This is a worker node. Add it to the cluster through directions given on /tmp/startup.log there." | tee -a /tmp/startup.log
+  echo "  Or you can get it from the master node by doing: kubeadm token create --print-join-command " | tee -a /tmp/startup.log
+  echo "  A sample command would be: kubeadm join onpremclust00:6443 --token kcsof9.aydsty1aaei9hut8 --discovery-token-ca-cert-hash sha256:9a46836e2e36773aff8a478c1ad050ea059cd28d00564258194885276d9ef5f6 " | tee -a /tmp/startup.log
 fi
+echo " " | tee -a /tmp/startup.log
 echo "Autocompletion with: echo 'source <(kubectl completion bash)' >> \$HOME/.bashrc" | tee -a /tmp/startup.log
+echo "Don't forget: export KUBECONFIG=/etc/kubernetes/admin.conf" | tee -a /tmp/startup.log
+echo " or to do: mkdir -p \$HOME/.kube && sudo cat /etc/kubernetes/admin.conf > \$HOME/.kube/config" | tee -a /tmp/startup.log
+echo "... and right away apply this to have the network configured:"| tee -a /tmp/startup.log
+echo " kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml"| tee -a /tmp/startup.log
