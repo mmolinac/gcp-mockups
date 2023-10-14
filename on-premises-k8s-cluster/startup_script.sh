@@ -83,17 +83,50 @@ grep 'disabled_plugins' /etc/containerd/config.toml | grep cri > /dev/null && \
 echo "Installation of software has finished. Now follow these directions:" | tee -a /tmp/startup.log
 if [ "`hostname -s`" = "onpremclust00" ]; then
   ## This is the control plane
-  echo "- This is the control plane. Initialize the cluster this way:" | tee -a /tmp/startup.log
-  echo "kubeadm init --kubernetes-version ${KUBEVERSION} --apiserver-advertise-address=`hostname -i` --control-plane-endpoint `hostname -s`:6443 --cri-socket=unix:///var/run/containerd/containerd.sock --pod-network-cidr 192.168.0.0/16 --upload-certs | tee $HOME/cp.out" | tee -a /tmp/startup.log
+  cat <<EOF | tee -a /tmp/startup.log
+- This is the control plane. Initialize the cluster this way:
+  kubeadm init --kubernetes-version ${KUBEVERSION} --apiserver-advertise-address=`hostname -i` --control-plane-endpoint `hostname -s`:6443 --cri-socket=unix:///var/run/containerd/containerd.sock --pod-network-cidr 192.168.0.0/16 --upload-certs | tee $HOME/cp.out
+EOF
 else
   ## This is a worker node
-  echo "- This is a worker node. Add it to the cluster through directions given on /tmp/startup.log there." | tee -a /tmp/startup.log
-  echo "  Or you can get it from the master node by doing: kubeadm token create --print-join-command " | tee -a /tmp/startup.log
-  echo "  A sample command would be: kubeadm join onpremclust00:6443 --token kcsof9.aydsty1aaei9hut8 --discovery-token-ca-cert-hash sha256:9a46836e2e36773aff8a478c1ad050ea059cd28d00564258194885276d9ef5f6 " | tee -a /tmp/startup.log
+  cat <<EOF | tee -a /tmp/startup.log
+- This is a worker node. Add it to the cluster through directions given on /tmp/startup.log there.
+  Or you can get it from the master node by doing: kubeadm token create --print-join-command
+  A sample command would be: kubeadm join onpremclust00:6443 --token kcsof9.aydsty1aaei9hut8 --discovery-token-ca-cert-hash sha256:9a46836e2e36773aff8a478c1ad050ea059cd28d00564258194885276d9ef5f6
+EOF
 fi
-echo " " | tee -a /tmp/startup.log
-echo "Autocompletion with: echo 'source <(kubectl completion bash)' >> \$HOME/.bashrc" | tee -a /tmp/startup.log
-echo "Don't forget: export KUBECONFIG=/etc/kubernetes/admin.conf" | tee -a /tmp/startup.log
-echo " or to do: mkdir -p \$HOME/.kube && sudo cat /etc/kubernetes/admin.conf > \$HOME/.kube/config" | tee -a /tmp/startup.log
-echo "... and right away apply this to have the network configured:"| tee -a /tmp/startup.log
-echo " kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml"| tee -a /tmp/startup.log
+cat <<EOF | tee -a /tmp/startup.log
+Check node taints by doing:
+
+kubectl describe nodes  | grep -i taint
+
+Untaint all nodes, including cp node, by doing:
+
+kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+
+Autocompletion with: 
+
+source <(kubectl completion bash) # set up autocomplete in bash into the current shell, bash-completion package should be installed first.
+echo "source <(kubectl completion bash)" >> ~/.bashrc # add autocomplete permanently to your bash shell.
+
+Please also add the following aliases:
+
+alias k=kubectl
+complete -o default -F __start_kubectl k
+export do="--dry-run=client -o yaml"
+export now="--force --grace-period 0"
+
+Don't forget: export KUBECONFIG=/etc/kubernetes/admin.conf
+ or to do: mkdir -p \$HOME/.kube && sudo cat /etc/kubernetes/admin.conf > \$HOME/.kube/config
+... and right away apply this to have the network configured with one of the following options:
+
+1) Calico: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+2) Cilium:
+  - curl -LO https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz
+  - sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin && rm cilium-linux-amd64.tar.gz
+  - cilium install
+
+Remember that you have help available here:
+https://kubernetes.io/docs/
+https://kubernetes.io/blog/
+EOF
