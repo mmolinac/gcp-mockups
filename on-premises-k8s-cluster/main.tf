@@ -33,3 +33,15 @@ resource "google_compute_instance" "onprem-instances" {
   metadata_startup_script = file("startup_script.sh")
 
 }
+
+# Firewall rules
+resource "google_compute_firewall" "default-incoming-all" {
+  name          = "onprem-fw-allow-all"
+  direction     = "INGRESS"
+  network       = "default"
+  source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["30000-65000"]
+  }
+}
