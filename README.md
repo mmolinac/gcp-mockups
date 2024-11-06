@@ -38,7 +38,7 @@ production-123456   production   4444555566
 ```
 And now proceed once to set the environment this way:
 ```Shell
-$ ./setenv.sh development-123456 production-123456 europe-southwest1
+$ ./setvars.sh development-123456 production-123456 europe-southwest1
 $ source environment.sh
 ```
 
