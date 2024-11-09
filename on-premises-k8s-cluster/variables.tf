@@ -42,8 +42,11 @@ variable "onprem_disk_size" {
   default     = "40"
 }
 
+# We can use any of the following, depending on our needs:
+# - ubuntu-os-cloud/ubuntu-2004-lts
+# - debian-cloud/debian-12
 variable "onprem_image" {
   description = "OS image for on-prem k8s cluster nodes"
   type        = string
-  default     = "debian-cloud/debian-12"
+  default     = "ubuntu-os-cloud/ubuntu-2004-lts"
 }
