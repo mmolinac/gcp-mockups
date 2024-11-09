@@ -1,7 +1,10 @@
 #!/bin/sh
 export DEBIAN_FRONTEND=noninteractive
-KUBEVERSION="1.28.0"
+OS_ID=`grep "^ID" /etc/os-release | awk -F= '{print $2}'`
+KUBEMAJOR="1.31"
+KUBEVERSION="${KUBEMAJOR}.2"
 KUBEVERSIONFULL="${KUBEVERSION}-1.1"
+
 echo "Starting software installation" | tee /tmp/startup.log
 echo "Installing packages as user `whoami`" | tee -a /tmp/startup.log
 apt-get update
@@ -43,14 +46,15 @@ apt update
 apt-get install -y apt-transport-https ca-certificates curl gnupg
 
 # Download the public signing key  for the Kubernetes package repositories
+mkdir -p /etc/apt/keyrings
 test -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg || (curl -fsSL \
-  https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | \
+  https://pkgs.k8s.io/core:/stable:/v${KUBEMAJOR}/deb/Release.key | \
   gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg)
 
 # Add the appropriate Kubernetes apt repository
 # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
 test -f /etc/apt/sources.list.d/kubernetes.list || \
-  (echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' |\
+  (echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v'${KUBEMAJOR}'/deb/ /' |\
   tee /etc/apt/sources.list.d/kubernetes.list)
 apt-get update
 
@@ -66,7 +70,7 @@ test -f /etc/apt/keyrings/docker.gpg || (curl -fsSL \
   /etc/apt/keyrings/docker.gpg && chmod a+r /etc/apt/keyrings/docker.gpg)
 
 echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/"$(. /etc/os-release && echo "$ID")" \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
   tee /etc/apt/sources.list.d/docker.list > /dev/null
 
@@ -79,12 +83,21 @@ grep 'disabled_plugins' /etc/containerd/config.toml | grep cri > /dev/null && \
   (containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/g'\
   | tee /etc/containerd/config.toml \ && systemctl restart containerd)
 
+cat <<EOF | sudo tee /etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 5
+debug: false
+EOF
+
 ## Now give directions to build the cluster
 echo "Installation of software has finished. Now follow these directions:" | tee -a /tmp/startup.log
 if [ "`hostname -s`" = "onpremclust00" ]; then
   ## This is the control plane
   echo "- This is the control plane. Initialize the cluster this way:" | tee -a /tmp/startup.log
   echo "kubeadm init --kubernetes-version ${KUBEVERSION} --apiserver-advertise-address=`hostname -i` --control-plane-endpoint `hostname -s`:6443 --cri-socket=unix:///var/run/containerd/containerd.sock --pod-network-cidr 192.168.0.0/16 --upload-certs | tee $HOME/cp.out" | tee -a /tmp/startup.log
+  echo "- Also, remember to untaint this node, if you only have one:" | tee -a /tmp/startup.log
+  echo "kubectl taint node --all node-role.kubernetes.io/control-plane:NoSchedule- | sudo tee \$HOME/cp.out" | tee -a /tmp/startup.log
 else
   ## This is a worker node
   echo "- This is a worker node. Add it to the cluster through directions given on /tmp/startup.log there." | tee -a /tmp/startup.log
@@ -96,4 +109,4 @@ echo "Autocompletion with: echo 'source <(kubectl completion bash)' >> \$HOME/.b
 echo "Don't forget: export KUBECONFIG=/etc/kubernetes/admin.conf" | tee -a /tmp/startup.log
 echo " or to do: mkdir -p \$HOME/.kube && sudo cat /etc/kubernetes/admin.conf > \$HOME/.kube/config" | tee -a /tmp/startup.log
 echo "... and right away apply this to have the network configured:"| tee -a /tmp/startup.log
-echo " kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml"| tee -a /tmp/startup.log
+echo " kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml"| tee -a /tmp/startup.log
